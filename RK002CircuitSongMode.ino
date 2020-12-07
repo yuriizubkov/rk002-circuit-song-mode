@@ -55,9 +55,12 @@ int controlButtonLastTimeDown = 0;
 bool controlButtonDown = false;
 int clockTicks = 0;
 byte beatsSinceLastAction = 1;
+byte beatsUntilNextAction = 4;
 byte patternLengthReminder = 0;
 byte currentSequencerAction = 0;
 byte lastSessionIndex = 0;
+bool loopingSessions = false;
+byte loopingSessionsRepeats = 0; //0...7 = 8 repeats = 3 bits
 
 // Timer
 int timer = 0;
@@ -219,6 +222,9 @@ void processControllButtonState() {
 void resetCounters() {
   clockTicks = 0;
   beatsSinceLastAction = 1;
+  beatsUntilNextAction = 4;
+  loopingSessions = false;
+  loopingSessionsRepeats = 0;
   patternLengthReminder = 0;
   currentSequencerAction = 0;
 }
@@ -328,7 +334,7 @@ void saveNextSequencerEntry(byte action, int beats) {
   currentSequencerAction = currentSequencerAction + 1;
 }
 
-void processNextSequencerAction(bool incrementActionIndex = true) {
+void processNextSequencerAction(bool incrementActionIndex = true, bool queueSessionChanges = true) {
   if (currentSequencerAction > 29) {
     stopPlayingSequence(true);
     return;
@@ -337,7 +343,7 @@ void processNextSequencerAction(bool incrementActionIndex = true) {
   if (incrementActionIndex) {
     currentSequencerAction = currentSequencerAction + 1;
   }
-  
+
   SequenceEntry sequenceEntry = sequence[currentSequencerAction];
 
   switch (sequenceEntry.action) {
@@ -347,22 +353,55 @@ void processNextSequencerAction(bool incrementActionIndex = true) {
       }
 
     case SequencerActionType::SessionChange: {
-        RK002_sendProgramChange(SESSION_CHANNEL, sequenceEntry.address1 + 64); // select session (queued)
-        lastSessionIndex = sequenceEntry.address1;
-        // We need to calculate pattern length reminder, because session changes are queued
-        // Maybe there is more efficient way to do this
-        int lengthReminder = beatsSinceLastAction % 4;
-        if (lengthReminder > 0) {
-          patternLengthReminder = 3 - lengthReminder;
-        }
+        changeSession(queueSessionChanges, sequenceEntry.address1);
 
-        beatsSinceLastAction = 0;
+        lastSessionIndex = sequenceEntry.address1;
+        beatsUntilNextAction = sequenceEntry.counter;
+        beatsSinceLastAction = 1;
         break;
       }
 
     case SequencerActionType::JumpToAction: {
         currentSequencerAction = sequenceEntry.address1; // address1 represents action index in this case
-        processNextSequencerAction(false); // recursive call
+        processNextSequencerAction(false); // recursive call without incrementing currentSequencerAction index
+        break;
+      }
+
+    case SequencerActionType::LoopSessions: {
+        if (!loopingSessions) {
+          loopingSessions = true;
+          loopingSessionsRepeats = sequenceEntry.counter + 1; // 0...7 = 8 repeats = 3 bits
+          // change session on start index
+          changeSession(queueSessionChanges, sequenceEntry.address1);
+          lastSessionIndex = sequenceEntry.address1;
+        } else {
+          // if on the end session index of the loop
+          if (lastSessionIndex == sequenceEntry.address2) {
+            // change session to the start index, decrement repeats by 1
+            loopingSessionsRepeats = loopingSessionsRepeats - 1;
+            if (loopingSessionsRepeats == 0) {
+              loopingSessions = false;
+              processNextSequencerAction();
+              return;  // exit looping mode
+            } else {
+              changeSession(queueSessionChanges, sequenceEntry.address1);
+              lastSessionIndex = sequenceEntry.address1;
+            }
+          } else if (sequenceEntry.address1 <= sequenceEntry.address2) {
+            // if start index is more than end index - increment current session index
+            // increment session index and change session
+            if(lastSessionIndex < 31) { lastSessionIndex = lastSessionIndex + 1; }
+            changeSession(queueSessionChanges, lastSessionIndex);
+          } else {
+            // if start index is less than end index - decrement current session index
+            // decrement session index and change session
+            if (lastSessionIndex > 0) { lastSessionIndex = lastSessionIndex - 1; }
+            changeSession(queueSessionChanges, lastSessionIndex);
+          }
+        }
+
+        beatsUntilNextAction = 32; // one session length = 32 beats
+        beatsSinceLastAction = 1;
         break;
       }
 
@@ -370,6 +409,20 @@ void processNextSequencerAction(bool incrementActionIndex = true) {
         stopPlayingSequence(true);
         break;
       }
+  }
+}
+
+void changeSession(bool queued, byte sessionIndex) {
+  if (queued) {
+    RK002_sendProgramChange(SESSION_CHANNEL, sessionIndex + 64); // select session (queued)
+    // We need to calculate pattern length reminder, because session changes are queued
+    // Maybe there is more efficient way to do this
+    int lengthReminder = beatsSinceLastAction % 4;
+    if (lengthReminder > 0) {
+      patternLengthReminder = 4 - lengthReminder;
+    }
+  } else {
+    RK002_sendProgramChange(SESSION_CHANNEL, sessionIndex);
   }
 }
 
@@ -425,23 +478,7 @@ void startPlayingSequence() {
 #endif
   resetCounters();
   currentSubState = SequencerSubstate::Playing;
-
-  if ((sequence[0].action == 0) || (sequence[0].action == SequencerActionType::StopSequence)) {
-#ifdef DEBUG
-    RK002_printf("Sequence is empty");
-#endif
-    stopPlayingSequence(true);
-    return;
-  }
-
-  // Changing session and restarting if not on the start session
-  if (lastSessionIndex != sequence[0].address1) {
-    //RK002_sendStop(); we can't send start/stop in MIDI slave mode
-    lastSessionIndex = sequence[0].address1;
-    RK002_sendProgramChange(SESSION_CHANNEL, sequence[0].address1); // program change without queue
-    resetCounters();
-    //RK002_sendStart();
-  }
+  processNextSequencerAction(false, false); // don't increment actionIndex here on start, don't use session change queue
 }
 
 void stopPlayingSequence(bool sendMidi) {
@@ -460,7 +497,11 @@ void stopPlayingSequence(bool sendMidi) {
 bool RK002_onProgramChange(byte channel, byte nr) {
   // Session control channel number is never changing on Circuit
   if (channel == SESSION_CHANNEL) {
-    lastSessionIndex = nr;
+    if(nr >= 64) {
+      lastSessionIndex = nr - 64; // queued program change has indexes > 64
+    } else {
+      lastSessionIndex = nr;
+    }
 
     if (currentSubState == SequencerSubstate::Recording) {
       saveNextSequencerEntry(SequencerActionType::SessionChange, beatsSinceLastAction);
@@ -511,9 +552,12 @@ boolean RK002_onClock() {
           }
         case SequencerSubstate::Playing: {
             if (patternLengthReminder == 0) {
-              // When action beats set to 1 it can probably glitch :) feel free to fix
-              if (beatsSinceLastAction >= sequence[currentSequencerAction].counter - 1) {
-                processNextSequencerAction();
+              if (beatsSinceLastAction >= beatsUntilNextAction - 1) {
+                if(loopingSessions) {
+                  processNextSequencerAction(false); // stay in the same action handler
+                } else {
+                  processNextSequencerAction();
+                }
               } else {
                 beatsSinceLastAction = beatsSinceLastAction + 1;
               }
