@@ -11,14 +11,14 @@ enum SequencerActionType {
   StopSequence = 2,
   LoopSessions = 3,
   LoopActions = 4,
-  JumpToAction = 5  
-  // 6,7 - reserved
+  JumpToAction = 5
+                 // 6,7 - reserved
 };
 
 enum SequencerState {
   Disabled,
   Play,
-  Record  
+  Record
 };
 
 enum SequencerSubstate {
@@ -69,9 +69,9 @@ TimerCallback pTimerCallback;
 void setup() {
   RK002_clockSetMode(0); // 0 - Auto, 1 - internal, 2 - external clock
   loadSequence();
-  #ifdef DEBUG
+#ifdef DEBUG
   printSequence();
-  #endif
+#endif
 }
 
 // Arduino loop function
@@ -133,9 +133,9 @@ void setControlButtonState(bool down) {
 }
 
 void setCurrentState(byte newState) {
-  #ifdef DEBUG
+#ifdef DEBUG
   RK002_printf("State %d", newState);
-  #endif
+#endif
   if (newState == SequencerState::Record) {
     clearSequencerMemory();
   }
@@ -148,7 +148,7 @@ void playConfirmSound() {
   if (currentSubState != SequencerSubstate::Idle) {
     return;
   }
-  
+
   currentSubState = SequencerSubstate::ConfirmationSoundPlaying;
 
   switch (currentState) {
@@ -185,7 +185,9 @@ void clearSequencerMemory() {
 }
 
 void processControllButtonState() {
-  if ((currentSubState != SequencerSubstate::Idle) && (controlButtonDown == false)) { return; }
+  if ((currentSubState != SequencerSubstate::Idle) && (controlButtonDown == false)) {
+    return;
+  }
   int timeBetweenPressDownAndUp = millis() - controlButtonLastTimeDown;
 
   // Short press
@@ -193,9 +195,9 @@ void processControllButtonState() {
     switch (currentState) {
       case SequencerState::Disabled: {
           setCurrentState(SequencerState::Play);
-          #ifdef DEBUG
+#ifdef DEBUG
           printSequence();
-          #endif
+#endif
           break;
         }
 
@@ -228,31 +230,31 @@ SequenceEntry unpackEntryFrom16BitParamVal(word paramVal) {
   entry.action = (byte2 & 0b11100000) >> 5;
 
   // stop action - it has only action type, that was already parsed above
-  switch(entry.action) {
-      case SequencerActionType::SessionChange: {
-          entry.address1 = byte2 & 0b00011111; // session index
-          entry.counter = byte1; // beats counter
-          break;
-        }  
+  switch (entry.action) {
+    case SequencerActionType::SessionChange: {
+        entry.address1 = byte2 & 0b00011111; // session index
+        entry.counter = byte1; // beats counter
+        break;
+      }
 
-      case SequencerActionType::LoopSessions: {
-          entry.address1 = byte2 & 0b00011111; // start session index
-          entry.address2 = byte1 & 0b00011111; // end session index
-          entry.counter = (byte1 & 0b11100000) >> 5; // repeats
-          break;
-        }
+    case SequencerActionType::LoopSessions: {
+        entry.address1 = byte2 & 0b00011111; // start session index
+        entry.address2 = byte1 & 0b00011111; // end session index
+        entry.counter = (byte1 & 0b11100000) >> 5; // repeats
+        break;
+      }
 
-      case SequencerActionType::LoopActions: {
-          // not implemented  
-          break;
-        }
+    case SequencerActionType::LoopActions: {
+        // not implemented
+        break;
+      }
 
-      case SequencerActionType::JumpToAction: {
-          entry.address1 = byte2 & 0b00011111; // action index
-          entry.counter = byte1; // beats counter
-          break;
-        }
-    }
+    case SequencerActionType::JumpToAction: {
+        entry.address1 = byte2 & 0b00011111; // action index
+        entry.counter = byte1; // beats counter
+        break;
+      }
+  }
 
   return entry;
 }
@@ -260,48 +262,48 @@ SequenceEntry unpackEntryFrom16BitParamVal(word paramVal) {
 word packEntryTo16BitParamVal(SequenceEntry entry) {
   word paramVal = 0;
 
-  switch(entry.action) {
-      case SequencerActionType::SessionChange: {
-          paramVal = entry.action << 5;
-          paramVal = (paramVal | entry.address1) << 8; // session index
-          paramVal = paramVal | entry.counter;
-          break;
-        }
+  switch (entry.action) {
+    case SequencerActionType::SessionChange: {
+        paramVal = entry.action << 5;
+        paramVal = (paramVal | entry.address1) << 8; // session index
+        paramVal = paramVal | entry.counter;
+        break;
+      }
 
-      case SequencerActionType::LoopSessions: {
-          paramVal = entry.action << 5;
-          paramVal = (paramVal | entry.address1) << 8; // start session index
-          paramVal = paramVal | (entry.counter << 5); // repeats
-          paramVal = paramVal | entry.address2; // end session index
-          break;
-        }
+    case SequencerActionType::LoopSessions: {
+        paramVal = entry.action << 5;
+        paramVal = (paramVal | entry.address1) << 8; // start session index
+        paramVal = paramVal | (entry.counter << 5); // repeats
+        paramVal = paramVal | entry.address2; // end session index
+        break;
+      }
 
-      case SequencerActionType::LoopActions: {
-          // not implemented  
-          break;
-        }
+    case SequencerActionType::LoopActions: {
+        // not implemented
+        break;
+      }
 
-      case SequencerActionType::JumpToAction: {
-          paramVal = entry.action << 5;
-          // 0 - 29, 2 last parameters reserved for config
-          paramVal = (paramVal | entry.address1) << 8; // to action index
-          break;
-        }
+    case SequencerActionType::JumpToAction: {
+        paramVal = entry.action << 5;
+        // 0 - 29, 2 last parameters reserved for config
+        paramVal = (paramVal | entry.address1) << 8; // to action index
+        break;
+      }
 
-      case SequencerActionType::StopSequence: {
-          paramVal = entry.action << 13; // 8 + 5
-          break;
-        }
-    }
+    case SequencerActionType::StopSequence: {
+        paramVal = entry.action << 13; // 8 + 5
+        break;
+      }
+  }
 
   return paramVal;
 }
 
 // We can save only session change in the standalone record mode (without web editor)
 void saveNextSequencerEntry(byte action, int beats) {
-  #ifdef DEBUG
+#ifdef DEBUG
   RK002_printf("Save at beat %d", beats);
-  #endif
+#endif
   if (currentSequencerAction > 29) {
     return;
   }
@@ -326,32 +328,49 @@ void saveNextSequencerEntry(byte action, int beats) {
   currentSequencerAction = currentSequencerAction + 1;
 }
 
-void playNextSequencerAction() {
-    if(currentSequencerAction > 29) { 
-      stopPlayingSequence(true);
-      return; 
-    }
+void processNextSequencerAction(bool incrementActionIndex = true) {
+  if (currentSequencerAction > 29) {
+    stopPlayingSequence(true);
+    return;
+  }
 
-    SequenceEntry nextSequenceEntry = sequence[currentSequencerAction + 1];
-    
-    switch(nextSequenceEntry.action) {
-      case SequencerActionType::StopSequence: { // stop
-          stopPlayingSequence(true);
-          break;
-        }
-        
-      case SequencerActionType::SessionChange: {
-          RK002_sendProgramChange(SESSION_CHANNEL, nextSequenceEntry.address1 + 64); // select session (queued)
-          lastSessionIndex = nextSequenceEntry.address1; 
-          currentSequencerAction = currentSequencerAction + 1;
-          break;
+  if (incrementActionIndex) {
+    currentSequencerAction = currentSequencerAction + 1;
+  }
+  
+  SequenceEntry sequenceEntry = sequence[currentSequencerAction];
+
+  switch (sequenceEntry.action) {
+    case SequencerActionType::StopSequence: { // stop
+        stopPlayingSequence(true);
+        break;
+      }
+
+    case SequencerActionType::SessionChange: {
+        RK002_sendProgramChange(SESSION_CHANNEL, sequenceEntry.address1 + 64); // select session (queued)
+        lastSessionIndex = sequenceEntry.address1;
+        // We need to calculate pattern length reminder, because session changes are queued
+        // Maybe there is more efficient way to do this
+        int lengthReminder = beatsSinceLastAction % 4;
+        if (lengthReminder > 0) {
+          patternLengthReminder = 3 - lengthReminder;
         }
 
-      default: { // 0 - empty
-          stopPlayingSequence(true);
-          break;  
-        }
-    }
+        beatsSinceLastAction = 0;
+        break;
+      }
+
+    case SequencerActionType::JumpToAction: {
+        currentSequencerAction = sequenceEntry.address1; // address1 represents action index in this case
+        processNextSequencerAction(false); // recursive call
+        break;
+      }
+
+    default: { // 0 - empty
+        stopPlayingSequence(true);
+        break;
+      }
+  }
 }
 
 #ifdef DEBUG
@@ -379,44 +398,44 @@ void loadSequence() {
 }
 
 void startRecordingSequence() {
-  #ifdef DEBUG
+#ifdef DEBUG
   RK002_printf("StartRecording");
-  #endif
+#endif
   resetCounters();
   currentSubState = SequencerSubstate::Recording;
   saveNextSequencerEntry(SequencerActionType::SessionChange, 0);
 }
 
 void stopRecordingSequence() {
-  #ifdef DEBUG
+#ifdef DEBUG
   RK002_printf("StopRecording");
-  #endif
+#endif
   currentSubState = SequencerSubstate::Idle;
   currentState = SequencerState::Play;
   saveNextSequencerEntry(SequencerActionType::StopSequence, beatsSinceLastAction);
   saveSequence();
-  #ifdef DEBUG
+#ifdef DEBUG
   printSequence();
-  #endif
+#endif
 }
 
 void startPlayingSequence() {
-  #ifdef DEBUG
-  RK002_printf("StartPlaying");  
-  #endif
+#ifdef DEBUG
+  RK002_printf("StartPlaying");
+#endif
   resetCounters();
   currentSubState = SequencerSubstate::Playing;
- 
-  if((sequence[0].action == 0) || (sequence[0].action == SequencerActionType::StopSequence)) {
-    #ifdef DEBUG
+
+  if ((sequence[0].action == 0) || (sequence[0].action == SequencerActionType::StopSequence)) {
+#ifdef DEBUG
     RK002_printf("Sequence is empty");
-    #endif
+#endif
     stopPlayingSequence(true);
     return;
   }
 
   // Changing session and restarting if not on the start session
-  if(lastSessionIndex != sequence[0].address1) {
+  if (lastSessionIndex != sequence[0].address1) {
     //RK002_sendStop(); we can't send start/stop in MIDI slave mode
     lastSessionIndex = sequence[0].address1;
     RK002_sendProgramChange(SESSION_CHANNEL, sequence[0].address1); // program change without queue
@@ -426,14 +445,14 @@ void startPlayingSequence() {
 }
 
 void stopPlayingSequence(bool sendMidi) {
-  #ifdef DEBUG
+#ifdef DEBUG
   RK002_printf("StopPlaying");
-  #endif
+#endif
   currentSubState = SequencerSubstate::Idle;
-//  if (sendMidi) { // we can't send stop in MIDI slave mode
-//    RK002_sendStop(); 
-//    //RK002_sendReset();
-//  }
+  //  if (sendMidi) { // we can't send stop in MIDI slave mode
+  //    RK002_sendStop();
+  //    //RK002_sendReset();
+  //  }
 }
 
 // === MIDI processing functions ===
@@ -454,16 +473,24 @@ bool RK002_onProgramChange(byte channel, byte nr) {
 
 bool RK002_onNoteOn(byte channel, byte key, byte velocity) {
   // Very bottom key in the lowest octave on the Circuit (in any scale and synth number)
-  if (key != 0) { return false; }
-  if (currentSubState != SequencerSubstate::Idle || (controlButtonDown != false)) { return false; }
+  if (key != 0) {
+    return false;
+  }
+  if (currentSubState != SequencerSubstate::Idle || (controlButtonDown != false)) {
+    return false;
+  }
 
   setControlButtonState(true);
   return false;
 }
 
 bool RK002_onNoteOff(byte channel, byte key, byte velocity) {
-  if (key != 0) { return false; }
-  if ((currentSubState != SequencerSubstate::Idle) || (controlButtonDown != true)) { return false; }
+  if (key != 0) {
+    return false;
+  }
+  if ((currentSubState != SequencerSubstate::Idle) || (controlButtonDown != true)) {
+    return false;
+  }
 
   setControlButtonState(false);
   processControllButtonState();
@@ -477,24 +504,16 @@ boolean RK002_onClock() {
     clockTicks = (clockTicks + 1) % 24;
 
     if (clockTicks == 0 && beatsSinceLastAction < 255) {
-      switch(currentSubState) {
+      switch (currentSubState) {
         case SequencerSubstate::Recording: {
             beatsSinceLastAction = beatsSinceLastAction + 1;
             break;
           }
         case SequencerSubstate::Playing: {
-            if(patternLengthReminder == 0) {
+            if (patternLengthReminder == 0) {
               // When action beats set to 1 it can probably glitch :) feel free to fix
-              if(beatsSinceLastAction >= sequence[currentSequencerAction].counter - 1) { 
-                playNextSequencerAction();
-                // We need to calculate pattern length reminder, because session changes are queued
-                // Maybe there is more efficient way to do this
-                int lengthReminder = beatsSinceLastAction % 4;
-                if(lengthReminder > 0) {
-                  patternLengthReminder = 3 - lengthReminder;  
-                }
-                
-                beatsSinceLastAction = 0;
+              if (beatsSinceLastAction >= sequence[currentSequencerAction].counter - 1) {
+                processNextSequencerAction();
               } else {
                 beatsSinceLastAction = beatsSinceLastAction + 1;
               }
@@ -502,7 +521,7 @@ boolean RK002_onClock() {
             } else {
               patternLengthReminder = patternLengthReminder - 1;
             }
-            
+
             break;
           }
       }
@@ -514,14 +533,14 @@ boolean RK002_onClock() {
 
 void RK002_onParamSet(unsigned param_nr, int val) {
   // In case if editor connected we need to update current loaded parameters
-  if(param_nr < 30) {
+  if (param_nr < 30) {
     sequence[param_nr] = unpackEntryFrom16BitParamVal(val);
   } else {
     // 30-31 config params
   }
 }
 
-bool RK002_onStart() {  
+bool RK002_onStart() {
   switch (currentState) {
     case SequencerState::Play: {
         startPlayingSequence();
@@ -537,7 +556,7 @@ bool RK002_onStart() {
   return false;
 }
 
-bool RK002_onContinue() {  
+bool RK002_onContinue() {
   switch (currentState) {
     case SequencerState::Play: {
         startPlayingSequence();
@@ -553,7 +572,7 @@ bool RK002_onContinue() {
   return false;
 }
 
-bool RK002_onStop() {  
+bool RK002_onStop() {
   switch (currentState) {
     case SequencerState::Play: {
         stopPlayingSequence(false);
