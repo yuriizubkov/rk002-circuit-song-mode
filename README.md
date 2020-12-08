@@ -1,6 +1,6 @@
 # Song Mode for Novation Circuit with RK002
 
-This firmware is for the RK002 from Retrokits.com. It implements the ability to use the Song Mode (chaining sessions) for the Novation Circuit.
+This firmware is for the [RK002 from Retrokits.com](https://www.retrokits.com/rk-002/). It implements the ability to use the Song Mode (chaining sessions) for the Novation Circuit.
 
 
 The firmware can be used both in stand-alone mode and in conjunction with a [Web Editor](https://github.com/yuriizubkov/rk002-sequence-editor). In stand-alone mode, the sequencer can record up to 30 session changes with automatic counting and storage of the number of beats between events. The web editor allows you to add additional actions to the sequence, edit the sequence, or create a sequence from scratch and upload it into the RK002 memory. The recorded sequence is stored in the non-volatile memory of the RK002 and will be available after turning the device off and on.
