@@ -5,6 +5,10 @@ This firmware is for the [RK002 from Retrokits.com](https://www.retrokits.com/rk
 
 The firmware can be used both in stand-alone mode and in conjunction with a [Web Editor](https://github.com/yuriizubkov/rk002-sequence-editor). In stand-alone mode, the sequencer can record up to 30 session changes with automatic counting and storage of the number of beats between events. The web editor allows you to add additional actions to the sequence, edit the sequence, or create a sequence from scratch and upload it into the RK002 memory. The recorded sequence is stored in the non-volatile memory of the RK002 and will be available after turning the device off and on.
 
+How it works with the Circuit:
+
+[![RK002 + Novation Circuit = Song Mode](https://img.youtube.com/vi/l-ySi74VDOQ/0.jpg)](https://www.youtube.com/watch?v=l-ySi74VDOQ)
+
 ## How to flash the firmware
 How to flash this firmware into your RK002 is described [here on the retrokits.com](https://www.retrokits.com/rk002-duy/)
 
