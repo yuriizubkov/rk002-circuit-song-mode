@@ -12,6 +12,8 @@ How it works with the Circuit:
 ## How to flash the firmware
 How to flash this firmware into your RK002 is described [here on the retrokits.com](https://www.retrokits.com/rk002-duy/)
 
+> Don't forget to add all 3 .ino files from this repository to your Arduino project. Open main file "RK002CircuitSongMode.ino" and then add other 2 files with "Sketch" - "Add file" menu.
+
 ## Operating modes
 
 ### Stand-alone mode
