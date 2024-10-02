@@ -27,7 +27,7 @@ How to flash this firmware into your RK002 is described [here on the retrokits.c
 
 ### Using with Web Editor
 If you want to edit the sequence or create a new one in offline mode, you can use RK002 with [Web Editor](https://github.com/yuriizubkov/rk002-sequence-editor).</br>
-Online version can be found [https://lensflare.dev/rk002-sequence-editor/](https://lensflare.dev/rk002-sequence-editor/).
+Online version can be found [https://yuriizubkov.github.io/rk002-sequence-editor/](https://yuriizubkov.github.io/rk002-sequence-editor/).
 
 You need to connect your RK002 to the PC as a MIDI loopback cable. Yellow end goes to the input, black - to the output of the MIDI interface.
 
